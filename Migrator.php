@@ -118,7 +118,7 @@ class Migrator
         {
             $this->createTicketsForProject($value["lighthouseProjectID"],$value["donedoneProjectID"]);
             $this->updateTicketsStateForProject($value["lighthouseProjectID"],$value["donedoneProjectID"]);
-            $this->commentTicketsForProjec($value["lighthouseProjectID"],$value["donedoneProjectID"]);
+            $this->commentTicketsForProject($value["lighthouseProjectID"],$value["donedoneProjectID"]);
         }
     }
 //
@@ -138,11 +138,7 @@ class Migrator
 
         foreach($lighthouseTickets as $ticketNumber => $ticket)
         {
-//            $tag = addcslashes($this->createDonedoneTag($ticket["tag"],$ticket["milestone"]), "\0..\37!@\@\177..\377");
-//            $body = addcslashes($ticket["originalBody"], "\0..\37!@\@\177..\377");
-//            $title = addcslashes($ticket["title"], "\0..\37!@\@\177..\377");
-
-            $tag = str_replace("\"","",$this->createDonedoneTag($ticket["tag"],$ticket["milestone"]));
+            $tag = str_replace("\"","", $this->createDonedoneTag($ticket["tag"],$ticket["milestone"]));
             $state = $this->convertTicketState($ticket["state"]);
 
             $title = str_replace("\"","",$ticket["title"]);
@@ -298,10 +294,10 @@ class Migrator
 
     public function createDonedoneTag($tag, $milestone)
     {
-        $tagComponentsArray = explode(" ", $tag);
+        $cleanTag = str_replace("\"","", $tag);
+        $tagComponentsArray = explode(" ", $cleanTag);
 
-
-        if($tagComponentsArray[0] == "v")
+        if(substr($cleanTag, 1) == "v")
             $donedoneTag = sprintf("release-$milestone");
         else
             $donedoneTag = sprintf("$tagComponentsArray[0]-$milestone-$tagComponentsArray[1]");
