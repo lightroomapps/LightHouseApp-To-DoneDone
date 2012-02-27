@@ -24,7 +24,7 @@ class Migrator
                 $this->migrationDatabase->query("CREATE TABLE IF NOT EXISTS Projects (lighthouseProjectID TEXT PRIMARY KEY,
                                                                                       projectName TEXT,
                                                                                       donedoneProjectID TEXT)");
-                $this->migrationDatabase->query("CREATE TABLE IF NOT EXISTS Tickets (lighthouseTicketID TEXT PRIMARY KEY,
+                $this->migrationDatabase->query("CREATE TABLE IF NOT EXISTS Tickets (lighthouseTicketID TEXT,
                                                                                      lighthouseProjectID TEXT,
                                                                                      title TEXT,
                                                                                      body TEXT,
@@ -38,7 +38,8 @@ class Migrator
                                                                                      successfullyAttached INT,
                                                                                      successfullyUpdated INT,
                                                                                      successfullyCommented INT,
-                                                                                     donedoneID TEXT)");
+                                                                                     donedoneID TEXT,
+                                                                                     PRIMARY KEY (lighthouseTicketID, lighthouseProjectID))");
                 $this->migrationDatabase->query("CREATE TABLE IF NOT EXISTS Versions (lighthouseTicketID TEXT,
                                                                                       lighthouseProjectID TEXT,
                                                                                       versionNumber TEXT,
@@ -137,11 +138,15 @@ class Migrator
 
         foreach($lighthouseTickets as $ticketNumber => $ticket)
         {
-            $tag = addcslashes($this->createDonedoneTag($ticket["tag"],$ticket["milestone"]), "\0..\37!@\@\177..\377");
+//            $tag = addcslashes($this->createDonedoneTag($ticket["tag"],$ticket["milestone"]), "\0..\37!@\@\177..\377");
+//            $body = addcslashes($ticket["originalBody"], "\0..\37!@\@\177..\377");
+//            $title = addcslashes($ticket["title"], "\0..\37!@\@\177..\377");
+
+            $tag = str_replace("\"","",$this->createDonedoneTag($ticket["tag"],$ticket["milestone"]));
             $state = $this->convertTicketState($ticket["state"]);
 
-            $title = addcslashes($ticket["title"], "\0..\37!@\@\177..\377");
-            $body = addcslashes($ticket["originalBody"], "\0..\37!@\@\177..\377");
+            $title = str_replace("\"","",$ticket["title"]);
+            $body = str_replace("\"","",$ticket["originalBody"]);
 
             $query = "INSERT INTO Tickets (lighthouseTicketID, lighthouseProjectID,
                                            title,  body, creatorName, assignedUserName, creationDate, state, tag, version,
@@ -153,8 +158,8 @@ class Migrator
 
             foreach($ticket["versions"] as $version)
             {
-                $commentary = addcslashes($this->createCommentFromChanges($version), "\0..\37!@\@\177..\377");
-
+//                $commentary = addcslashes($this->createCommentFromChanges($version), "\0..\37!@\@\177..\377");
+                $commentary = str_replace("\"","",$this->createCommentFromChanges($version));
                 $query = "INSERT INTO Versions (lighthouseTicketID, lighthouseProjectID, versionNumber, comment)
                                         VALUES ($ticket[number], $ticket[projectID], $version[number], \"$commentary)\")";
                 $result = $this->migrationDatabase->query($query);
@@ -193,7 +198,7 @@ class Migrator
             $tester = $syncedUsers[$value["creatorName"]];
             if($value["creatorName"] != "")
             {
-                // TODO: create default user
+                $resolver = $tester;
             }
             else
                $resolver = $syncedUsers[$value["assignedUserName"]];
@@ -201,12 +206,12 @@ class Migrator
             $createIssue = $this->donedone->createIssue
             (
                 $donedoneProjectID,
-                stripcslashes($value["title"]),
+                $value["title"],
                 2,// Priority middle
                 $resolver,
                 $tester,
-                stripcslashes($value["body"]),
-                stripcslashes($value["tag"]),
+                $value["body"],
+                $value["tag"],
                 null,
                 $attachments
             );
@@ -249,7 +254,7 @@ class Migrator
             {
                 if($version["versionNumber"] == ++$ticket["successfullyCommented"])
                 {
-                    $commentIssue = $this->donedone->createComment($donedoneProjectID, $ticket["donedoneID"], stripcslashes($version["comment"]));
+                    $commentIssue = $this->donedone->createComment($donedoneProjectID, $ticket["donedoneID"], $version["comment"]);
                     $commentIssue = json_decode($commentIssue);
                     if($commentIssue->CommentURL != null)
                     {
@@ -271,10 +276,7 @@ class Migrator
 
         while($user = $result->fetchArray(SQLITE3_ASSOC))
         {
-            $resultUsers[$user["userName"]] = array
-            (
-                $user["lighthouseUserID"] => $user["donedoneUserID"],
-            );
+            $resultUsers[$user["userName"]] =  $user["donedoneUserID"];
         }
 
         return $resultUsers;
@@ -297,7 +299,9 @@ class Migrator
     public function createDonedoneTag($tag, $milestone)
     {
         $tagComponentsArray = explode(" ", $tag);
-        if($tagComponentsArray[0] = "v")
+
+
+        if($tagComponentsArray[0] == "v")
             $donedoneTag = sprintf("release-$milestone");
         else
             $donedoneTag = sprintf("$tagComponentsArray[0]-$milestone-$tagComponentsArray[1]");
@@ -315,7 +319,7 @@ class Migrator
             elseif($attribute == "body" && $value != null)
                 $comment .= "{$versionChanges["body"]}\n\n";
             elseif($attribute != "number" && $value != null)
-                $comment .= "-> {$attribute} changed from $value[old] to $value[new]";
+                $comment .= "-> {$attribute} changed from $value[old] to $value[new]\n\n";
         }
 
         return $comment;
