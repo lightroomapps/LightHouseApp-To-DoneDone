@@ -18,14 +18,14 @@ class Migrator
         {
             if ($this->migrationDatabase = new SQLite3('Database/migrator.db'))
             {
-                $this->migrationDatabase->query("CREATE TABLE IF NOT EXISTS Users (lighthouseUserID TEXT PRIMARY KEY,
+                $this->migrationDatabase->query("CREATE TABLE IF NOT EXISTS Users (lighthouseUserID INTEGER PRIMARY KEY,
                                                                                    userName TEXT,
                                                                                    donedoneUserID TEXT)");
-                $this->migrationDatabase->query("CREATE TABLE IF NOT EXISTS Projects (lighthouseProjectID TEXT PRIMARY KEY,
+                $this->migrationDatabase->query("CREATE TABLE IF NOT EXISTS Projects (lighthouseProjectID INTEGER PRIMARY KEY,
                                                                                       projectName TEXT,
                                                                                       donedoneProjectID TEXT)");
-                $this->migrationDatabase->query("CREATE TABLE IF NOT EXISTS Tickets (lighthouseTicketID TEXT,
-                                                                                     lighthouseProjectID TEXT,
+                $this->migrationDatabase->query("CREATE TABLE IF NOT EXISTS Tickets (lighthouseTicketID INTEGER,
+                                                                                     lighthouseProjectID INTEGER,
                                                                                      title TEXT,
                                                                                      body TEXT,
                                                                                      creatorName TEXT,
@@ -40,13 +40,13 @@ class Migrator
                                                                                      successfullyCommented INT,
                                                                                      donedoneID TEXT,
                                                                                      PRIMARY KEY (lighthouseTicketID, lighthouseProjectID))");
-                $this->migrationDatabase->query("CREATE TABLE IF NOT EXISTS Versions (lighthouseTicketID TEXT,
-                                                                                      lighthouseProjectID TEXT,
+                $this->migrationDatabase->query("CREATE TABLE IF NOT EXISTS Versions (lighthouseTicketID INTEGER,
+                                                                                      lighthouseProjectID INTEGER,
                                                                                       versionNumber TEXT,
                                                                                       comment TEXT,
                                                                                       PRIMARY KEY (lighthouseTicketID, lighthouseProjectID, versionNumber))");
-                $this->migrationDatabase->query("CREATE TABLE IF NOT EXISTS Attachments (lighthouseTicketID TEXT,
-                                                                                         lighthouseProjectID TEXT,
+                $this->migrationDatabase->query("CREATE TABLE IF NOT EXISTS Attachments (lighthouseTicketID INTEGER,
+                                                                                         lighthouseProjectID INTEGER,
                                                                                          path TEXT,
                                                                                          PRIMARY KEY (lighthouseTicketID, lighthouseProjectID, path))");
             }
@@ -57,7 +57,7 @@ class Migrator
         }
     }
 //
-//Sync
+// Sync
     public function syncProjectsID()
     {
         $this->syncedProjectsID = array();
@@ -76,7 +76,7 @@ class Migrator
             $lighthouseProjectsID = $lighthouseProject["id"];
             $lighthouseProjectsName = $lighthouseProject["name"];
 
-            $query = "INSERT INTO Projects (lighthouseProjectID, projectName, donedoneProjectID) VALUES (\"$lighthouseProjectsID\", \"$lighthouseProjectsName\", \"$donedoneProjectID\")";
+            $query = "INSERT INTO Projects (lighthouseProjectID, projectName, donedoneProjectID) VALUES ($lighthouseProjectsID, \"$lighthouseProjectsName\", \"$donedoneProjectID\")";
             $success = $this->migrationDatabase->query($query);
         }
     }
@@ -122,7 +122,7 @@ class Migrator
         }
     }
 //
-//Getters
+// Getters
     public function getAllTickets()
     {
         $query = "SELECT lighthouseProjectID FROM Projects WHERE donedoneProjectID !=\"\"";
@@ -154,10 +154,9 @@ class Migrator
 
             foreach($ticket["versions"] as $version)
             {
-//                $commentary = addcslashes($this->createCommentFromChanges($version), "\0..\37!@\@\177..\377");
                 $commentary = str_replace("\"","",$this->createCommentFromChanges($version));
                 $query = "INSERT INTO Versions (lighthouseTicketID, lighthouseProjectID, versionNumber, comment)
-                                        VALUES ($ticket[number], $ticket[projectID], $version[number], \"$commentary)\")";
+                                        VALUES ($ticket[number], $ticket[projectID], $version[number], \"$commentary\")";
                 $result = $this->migrationDatabase->query($query);
             }
 
@@ -171,10 +170,10 @@ class Migrator
         }
     }
 //
-//Setters
+// Setters
     public function createTicketsForProject($lighthouseProjectID, $donedoneProjectID)
     {
-        $query = "SELECT * FROM Tickets WHERE lighthouseProjectID = $lighthouseProjectID AND successfullyCreated>0";
+        $query = "SELECT * FROM Tickets WHERE lighthouseProjectID = $lighthouseProjectID AND successfullyCreated > 0 ORDER BY lighthouseTicketID ASC";
         $result = $this->migrationDatabase->query($query);
 
         $syncedUsers = $this->getSyncedUsers();
@@ -197,7 +196,7 @@ class Migrator
                 $resolver = $tester;
             }
             else
-               $resolver = $syncedUsers[$value["assignedUserName"]];
+                $resolver = $syncedUsers[$value["assignedUserName"]];
 
             $createIssue = $this->donedone->createIssue
             (
@@ -262,7 +261,7 @@ class Migrator
         }
     }
 //
-//ProcessData
+// ProcessData
     public function getSyncedUsers()
     {
         $query = "SELECT * FROM Users ";
