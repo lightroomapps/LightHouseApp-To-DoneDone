@@ -291,15 +291,29 @@ class Migrator
         return $donedoneStateID;
     }
 
+// TODO: More universal tag creation
     public function createDonedoneTag($tag, $milestone)
     {
-        $cleanTag = str_replace("\"","", $tag);
-        $tagComponentsArray = explode(" ", $cleanTag);
+        if($tag != "")
+        {
+            $cleanTag = str_replace("\"","", $tag);
 
-        if(substr($cleanTag, 1) == "v")
-            $donedoneTag = sprintf("release-$milestone");
+            $tagType = substr($cleanTag, 0, 1);
+            if($tagType == "b" || $tagType == "r")
+            {
+                $tagComponentsArray = explode(" ", $cleanTag);
+                $donedoneTag = sprintf("$tagComponentsArray[0]-$milestone-$tagComponentsArray[1]");
+            }
+            else
+            {
+                if($milestone != "")
+                    $donedoneTag = sprintf("release-$milestone");
+                else
+                    $donedoneTag = sprintf("release-$tag");
+            }
+        }
         else
-            $donedoneTag = sprintf("$tagComponentsArray[0]-$milestone-$tagComponentsArray[1]");
+            $donedoneTag = sprintf("release-$milestone");
 
         return $donedoneTag;
     }
